@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -19,6 +20,14 @@ export default {
 		},
 		extend: {
 			colors: {
+				amazon: {
+					default: "#131921",
+					light: "#232F3E",
+					yellow: "#FEBD69",
+					orange: "#FF9900",
+          button: "#F0C14B",
+					"button-hover": "#DDB347"
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
