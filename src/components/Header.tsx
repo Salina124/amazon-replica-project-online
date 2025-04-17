@@ -1,23 +1,60 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, ShoppingCart, MapPin, Menu, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, ShoppingCart, MapPin, Menu, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import Logo from './Logo';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const Header = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { toast } = useToast();
+  const [user, setUser] = useState<any>(null);
+  const { toast: showToast } = useToast();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      toast({
+      showToast({
         title: "Search initiated",
         description: `Searching for: ${searchTerm}`,
       });
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success('Signed out successfully');
+      navigate('/');
+    } catch (error) {
+      toast.error('Error signing out');
     }
   };
 
@@ -59,13 +96,44 @@ const Header = () => {
         </form>
         
         {/* Account & Lists */}
-        <Link to="/account" className="hidden sm:block ml-2 text-sm">
-          <div className="text-gray-300 text-xs">Hello, sign in</div>
-          <div className="font-bold">Account & Lists</div>
-        </Link>
+        {user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="text-white px-2">
+                <div className="text-left">
+                  <div className="text-gray-300 text-xs">Hello, {user.user_metadata?.full_name || 'User'}</div>
+                  <div className="font-bold">Account & Lists</div>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link to="/account" className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Your Account</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/orders" className="cursor-pointer">
+                  <span>Your Orders</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Link to="/auth" className="hidden sm:block ml-2 text-sm">
+            <div className="text-gray-300 text-xs">Hello, sign in</div>
+            <div className="font-bold">Account & Lists</div>
+          </Link>
+        )}
         
         {/* Returns & Orders */}
-        <Link to="/orders" className="hidden md:block ml-2 text-sm">
+        <Link to={user ? "/orders" : "/auth"} className="hidden md:block ml-2 text-sm">
           <div className="text-gray-300 text-xs">Returns</div>
           <div className="font-bold">& Orders</div>
         </Link>
