@@ -33,11 +33,11 @@ const Carousel: React.FC<CarouselProps> = ({ images }) => {
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {images.map((image, index) => (
-          <div key={index} className="min-w-full">
+          <div key={index} className="min-w-full h-[450px] md:h-[550px] lg:h-[600px]">
             <img 
               src={image} 
               alt={`Slide ${index}`} 
-              className="w-full h-auto object-cover"
+              className="w-full h-full object-cover object-center"
             />
           </div>
         ))}
@@ -46,7 +46,7 @@ const Carousel: React.FC<CarouselProps> = ({ images }) => {
       {/* Navigation buttons */}
       <button 
         onClick={prevSlide}
-        className="absolute top-1/2 left-2 -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-75 p-2 rounded-full text-black"
+        className="absolute top-1/2 left-4 -translate-y-1/2 bg-white bg-opacity-60 hover:bg-opacity-80 p-2 rounded-full text-black z-10"
         aria-label="Previous slide"
       >
         <ChevronLeft size={24} />
@@ -54,19 +54,19 @@ const Carousel: React.FC<CarouselProps> = ({ images }) => {
       
       <button 
         onClick={nextSlide}
-        className="absolute top-1/2 right-2 -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-75 p-2 rounded-full text-black"
+        className="absolute top-1/2 right-4 -translate-y-1/2 bg-white bg-opacity-60 hover:bg-opacity-80 p-2 rounded-full text-black z-10"
         aria-label="Next slide"
       >
         <ChevronRight size={24} />
       </button>
       
       {/* Indicators */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-10">
         {images.map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrentIndex(index)}
-            className={`h-2 w-2 rounded-full ${
+            className={`h-2.5 w-2.5 rounded-full ${
               index === currentIndex ? 'bg-white' : 'bg-white/50'
             }`}
             aria-label={`Go to slide ${index + 1}`}
