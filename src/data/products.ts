@@ -1,6 +1,4 @@
 
-import { Product } from "@/components/ProductCard";
-
 // Update the Product interface in the file to include sellerId
 export interface Product {
   id: number;

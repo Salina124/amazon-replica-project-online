@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product } from '@/components/ProductCard';
+import { Product } from '@/data/products';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
