@@ -12,6 +12,20 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import Carousel from '@/components/Carousel';
 
+// Update Product interface to include sellerId
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+  image: string;
+  category: string;
+  rating: number;
+  reviewCount: number;
+  discountPercent?: number;
+  isPrime?: boolean;
+  sellerId?: string; // Added sellerId property
+}
+
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -86,7 +100,10 @@ const ProductDetail = () => {
       });
       return;
     }
-    navigate(`/chat?seller=${product?.sellerId}`);
+    
+    // Pass sellerId to chat page if available, otherwise use a default
+    const sellerId = product?.sellerId || 'default-seller';
+    navigate(`/chat?seller=${sellerId}`);
   };
   
   if (!product) {

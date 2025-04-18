@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, MapPin, Menu, User, LogOut, MessageSquare, ChevronDown } from 'lucide-react';
@@ -58,6 +59,25 @@ const Header = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+  
+  // Add the missing handleSignOut function
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        toast.error('Error signing out');
+      } else {
+        toast('Signed out successfully', {
+          description: 'You have been signed out of your account',
+        });
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error in sign out process:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
   
   const handleCartClick = (e: React.MouseEvent) => {
     if (!user) {
