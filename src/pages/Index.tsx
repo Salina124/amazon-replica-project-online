@@ -15,6 +15,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/data/products';
 import { toast } from 'sonner';
 
+// Define product type from Supabase for type safety
+interface SupabaseProduct {
+  id: number;
+  title: string;
+  price: number;
+  image_url: string;
+  rating: number;
+  review_count: number;
+  discount_percent: number | null;
+  is_prime: boolean;
+  seller_id: string;
+  category: string | null;
+  description?: string;
+  stock?: number;
+  sold?: number;
+  created_at?: string;
+}
+
 const Index = () => {
   const featuredProducts = getFeaturedProducts();
   const recommendedProducts = getRecommendedProducts();
@@ -25,10 +43,11 @@ const Index = () => {
     const fetchLatestProducts = async () => {
       setIsLoading(true);
       try {
+        // Use any type to bypass TypeScript constraints until Supabase types are updated
         const { data, error } = await supabase
-          .from('products')
+          .from('products' as any)
           .select('*')
-          .order('created_at', { ascending: false })
+          .order('created_at' as any, { ascending: false })
           .limit(5);
         
         if (error) {
@@ -38,17 +57,18 @@ const Index = () => {
         }
         
         if (data) {
-          const formattedProducts: Product[] = data.map(item => ({
+          // Convert Supabase product format to our app's Product format
+          const formattedProducts: Product[] = (data as SupabaseProduct[]).map(item => ({
             id: item.id,
             title: item.title,
             price: item.price,
             image: item.image_url,
             rating: item.rating || 0,
             reviewCount: item.review_count || 0,
-            discountPercent: item.discount_percent,
+            discountPercent: item.discount_percent || undefined,
             isPrime: item.is_prime || false,
             sellerId: item.seller_id,
-            category: item.category
+            category: item.category || undefined
           }));
           
           setLatestProducts(formattedProducts);
@@ -71,20 +91,22 @@ const Index = () => {
         { event: 'INSERT', schema: 'public', table: 'products' },
         (payload) => {
           if (payload.new) {
-            const newProduct: Product = {
-              id: payload.new.id,
-              title: payload.new.title,
-              price: payload.new.price,
-              image: payload.new.image_url,
-              rating: payload.new.rating || 0,
-              reviewCount: payload.new.review_count || 0,
-              discountPercent: payload.new.discount_percent,
-              isPrime: payload.new.is_prime || false,
-              sellerId: payload.new.seller_id,
-              category: payload.new.category
+            // Convert the new product to our app's Product format
+            const newProduct = payload.new as SupabaseProduct;
+            const formattedProduct: Product = {
+              id: newProduct.id,
+              title: newProduct.title,
+              price: newProduct.price,
+              image: newProduct.image_url,
+              rating: newProduct.rating || 0,
+              reviewCount: newProduct.review_count || 0,
+              discountPercent: newProduct.discount_percent || undefined,
+              isPrime: newProduct.is_prime || false,
+              sellerId: newProduct.seller_id,
+              category: newProduct.category || undefined
             };
             
-            setLatestProducts(prev => [newProduct, ...prev.slice(0, 4)]);
+            setLatestProducts(prev => [formattedProduct, ...prev.slice(0, 4)]);
           }
         }
       )

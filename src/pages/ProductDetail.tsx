@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, Minus, Plus, ShoppingCart, Heart, Share2, MessageSquare, Store, User } from 'lucide-react';
+import { Star, Minus, Plus, ShoppingCart, Heart, Share2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
@@ -12,103 +12,24 @@ import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import Carousel from '@/components/Carousel';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import SellerDetails from '@/components/SellerDetails';
 
-interface SellerProfile {
-  id: string;
-  full_name: string;
-  company_name?: string;
-  avatar_url?: string;
-  bio?: string;
-  rating?: number;
-  products_count?: number;
+interface SupabaseProduct {
+  id: number;
+  title: string;
+  price: number;
+  image_url: string;
+  rating: number | null;
+  review_count: number | null;
+  discount_percent: number | null;
+  is_prime: boolean | null;
+  seller_id: string;
+  category: string | null;
+  description?: string | null;
+  stock?: number;
+  sold?: number;
+  created_at?: string;
 }
-
-// Add a new Seller Details component
-const SellerDetails = ({ sellerId }: { sellerId: string }) => {
-  const [sellerProfile, setSellerProfile] = useState<any>(null);
-  const [sellerProductCount, setSellerProductCount] = useState(0);
-
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchSellerDetails = async () => {
-      try {
-        // Fetch seller profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', sellerId)
-          .single();
-
-        if (profileError) {
-          console.error('Error fetching seller profile:', profileError);
-          return;
-        }
-
-        // Fetch seller product count
-        const { count, error: countError } = await supabase
-          .from('products')
-          .select('*', { count: 'exact' })
-          .eq('seller_id', sellerId);
-
-        if (countError) {
-          console.error('Error fetching seller product count:', countError);
-          return;
-        }
-
-        setSellerProfile(profileData);
-        setSellerProductCount(count || 0);
-      } catch (err) {
-        console.error('Failed to fetch seller details:', err);
-      }
-    };
-
-    fetchSellerDetails();
-  }, [sellerId]);
-
-  if (!sellerProfile) return null;
-
-  return (
-    <div className="bg-white p-4 rounded-md shadow-sm">
-      <h3 className="text-lg font-semibold mb-2">Seller Information</h3>
-      <div className="flex items-center mb-2">
-        <div className="mr-4">
-          <img 
-            src={sellerProfile.avatar_url || 'https://via.placeholder.com/50'} 
-            alt={sellerProfile.full_name} 
-            className="w-12 h-12 rounded-full object-cover"
-          />
-        </div>
-        <div>
-          <p className="font-medium">{sellerProfile.full_name || 'Seller'}</p>
-          {sellerProfile.company_name && (
-            <p className="text-sm text-gray-600">{sellerProfile.company_name}</p>
-          )}
-        </div>
-      </div>
-      {sellerProfile.bio && (
-        <p className="text-sm text-gray-700 mb-2">{sellerProfile.bio}</p>
-      )}
-      <div className="text-sm text-gray-600">
-        Products listed: {sellerProductCount}
-      </div>
-      <button 
-        onClick={() => navigate(`/seller/${sellerId}`)}
-        className="mt-2 text-sm text-blue-600 hover:underline"
-      >
-        View Seller Profile
-      </button>
-    </div>
-  );
-};
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -117,32 +38,27 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [dbProduct, setDbProduct] = useState<any>(null);
-  const [seller, setSeller] = useState<SellerProfile | null>(null);
+  const [dbProduct, setDbProduct] = useState<SupabaseProduct | null>(null);
   
-  // We still use the mock data as fallback, but prefer the real data
-  const mockProduct = products.find(p => p.id === parseInt(id || '0'));
+  const productId = parseInt(id || '0');
+  const mockProduct = products.find(p => p.id === productId);
   
   const relatedProducts = products
-    .filter(p => p.id !== parseInt(id || '0'))
+    .filter(p => p.id !== productId)
     .slice(0, 4);
   
-  // Real product images
   const [productImages, setProductImages] = useState<string[]>([]);
   
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Get session
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
         
-        // Fetch real product data
         if (id) {
-          // Try to fetch from the database first
           const { data: productData, error } = await supabase
-            .from('products')
+            .from('products' as any)
             .select('*')
             .eq('id', parseInt(id))
             .single();
@@ -150,44 +66,14 @@ const ProductDetail = () => {
           if (error) {
             console.error('Error fetching product:', error);
           } else if (productData) {
-            setDbProduct(productData);
+            setDbProduct(productData as SupabaseProduct);
             
-            // If we have real product data, set the images
             setProductImages([
               productData.image_url,
               'https://via.placeholder.com/600x400?text=Product+Image+2',
               'https://via.placeholder.com/600x400?text=Product+Image+3',
               'https://via.placeholder.com/600x400?text=Product+Image+4',
             ]);
-            
-            // Fetch seller info
-            if (productData.seller_id) {
-              const { data: sellerData, error: sellerError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', productData.seller_id)
-                .single();
-              
-              if (sellerError) {
-                console.error('Error fetching seller:', sellerError);
-              } else if (sellerData) {
-                // Count the number of products by this seller
-                const { count, error: countError } = await supabase
-                  .from('products')
-                  .select('*', { count: 'exact' })
-                  .eq('seller_id', productData.seller_id);
-                
-                setSeller({
-                  id: sellerData.id,
-                  full_name: sellerData.full_name || 'Unknown Seller',
-                  company_name: sellerData.company_name,
-                  avatar_url: sellerData.avatar_url,
-                  bio: sellerData.bio,
-                  rating: sellerData.rating || 4.5,
-                  products_count: count || 0
-                });
-              }
-            }
           }
         }
       } catch (err) {
@@ -208,10 +94,8 @@ const ProductDetail = () => {
     return () => subscription.unsubscribe();
   }, [id]);
   
-  // Combine mock and real data, preferring real data
   const product = dbProduct || mockProduct;
   
-  // Use real images if available, otherwise fall back to mock
   const displayImages = productImages.length > 0 
     ? productImages 
     : [
@@ -242,18 +126,17 @@ const ProductDetail = () => {
       return;
     }
     
-    // Create a product object that matches the expected Product interface
     const cartProduct: Product = {
-      id: product.id,
+      id: typeof product.id === 'number' ? product.id : parseInt(String(product.id)),
       title: product.title,
       price: dbProduct ? product.price : product.price,
-      image: dbProduct ? product.image_url : product.image,
-      rating: product.rating || 0,
-      reviewCount: dbProduct ? product.review_count : product.reviewCount,
-      discountPercent: dbProduct ? product.discount_percent : product.discountPercent,
-      isPrime: dbProduct ? product.is_prime : product.isPrime,
-      sellerId: dbProduct ? product.seller_id : product.sellerId,
-      category: dbProduct ? product.category : product.category
+      image: dbProduct ? (product as SupabaseProduct).image_url : (product as Product).image,
+      rating: dbProduct ? (product as SupabaseProduct).rating || 0 : (product as Product).rating,
+      reviewCount: dbProduct ? (product as SupabaseProduct).review_count || 0 : (product as Product).reviewCount,
+      discountPercent: dbProduct ? (product as SupabaseProduct).discount_percent || undefined : (product as Product).discountPercent,
+      isPrime: dbProduct ? (product as SupabaseProduct).is_prime || false : (product as Product).isPrime,
+      sellerId: dbProduct ? (product as SupabaseProduct).seller_id : (product as Product).sellerId,
+      category: dbProduct ? (product as SupabaseProduct).category || undefined : (product as Product).category
     };
     
     addToCart(cartProduct, quantity);
@@ -271,14 +154,8 @@ const ProductDetail = () => {
       return;
     }
     
-    const sellerId = dbProduct ? product.seller_id : (product?.sellerId || 'default-seller');
+    const sellerId = dbProduct ? (product as SupabaseProduct).seller_id : ((product as Product)?.sellerId || 'default-seller');
     navigate(`/chat?seller=${sellerId}`);
-  };
-  
-  const handleViewSellerProfile = () => {
-    if (seller) {
-      navigate(`/seller/${seller.id}`);
-    }
   };
   
   if (loading) {
@@ -327,14 +204,17 @@ const ProductDetail = () => {
     );
   }
   
-  const formattedPrice = dbProduct ? product.price.toFixed(2) : product.price.toFixed(2);
+  const formattedPrice = typeof product.price === 'number' ? product.price.toFixed(2) : '0.00';
   
-  const discountPrice = dbProduct
-    ? (product.discount_percent ? (product.price * (1 - product.discount_percent / 100)).toFixed(2) : null)
-    : (product.discountPercent ? (product.price * (1 - product.discountPercent / 100)).toFixed(2) : null);
+  const discountPrice = dbProduct && product.discount_percent
+    ? (product.price * (1 - product.discount_percent / 100)).toFixed(2)
+    : !dbProduct && (product as Product).discountPercent 
+      ? (product.price * (1 - (product as Product).discountPercent! / 100)).toFixed(2) 
+      : null;
 
-  const discountPercent = dbProduct ? product.discount_percent : product.discountPercent;
-  const isPrime = dbProduct ? product.is_prime : product.isPrime;
+  const discountPercent = dbProduct ? (product as SupabaseProduct).discount_percent : (product as Product).discountPercent;
+  const isPrime = dbProduct ? (product as SupabaseProduct).is_prime : (product as Product).isPrime;
+  const sellerId = dbProduct ? (product as SupabaseProduct).seller_id : (product as Product).sellerId;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -354,18 +234,17 @@ const ProductDetail = () => {
                   <Star
                     key={i}
                     size={18}
-                    className={i < Math.floor(dbProduct ? product.rating || 0 : product.rating) ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
+                    className={i < Math.floor(dbProduct ? (product as SupabaseProduct).rating || 0 : (product as Product).rating) ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
                   />
                 ))}
               </div>
               <span className="text-sm text-blue-600 hover:text-amazon-orange cursor-pointer">
-                {dbProduct ? product.review_count || 0 : product.reviewCount} ratings
+                {dbProduct ? (product as SupabaseProduct).review_count || 0 : (product as Product).reviewCount} ratings
               </span>
             </div>
             
-            {/* Seller Information Card */}
-            {product?.seller_id && (
-              <SellerDetails sellerId={product.seller_id} />
+            {sellerId && (
+              <SellerDetails sellerId={sellerId} />
             )}
             
             <div className="mb-4">
@@ -401,8 +280,8 @@ const ProductDetail = () => {
             <div className="mb-6">
               <h2 className="text-lg font-semibold mb-2">About this item</h2>
               <p className="text-gray-700">
-                {dbProduct && product.description 
-                  ? product.description 
+                {dbProduct && (product as SupabaseProduct).description 
+                  ? (product as SupabaseProduct).description 
                   : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla quam velit, vulputate eu pharetra nec, mattis ac neque. Duis vulputate commodo lectus, ac blandit elit tincidunt id."}
               </p>
             </div>
@@ -446,13 +325,17 @@ const ProductDetail = () => {
                 <Heart className="mr-2" size={18} />
                 Add to Wish List
               </Button>
-            </div>
-            
-            <div className="mt-6">
-              <Button variant="ghost" size="sm" className="text-blue-600">
-                <Share2 className="mr-1" size={16} />
-                Share
-              </Button>
+              
+              {sellerId && (
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleContactSeller}
+                >
+                  <MessageSquare className="mr-2" size={18} />
+                  Contact Seller
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -468,9 +351,9 @@ const ProductDetail = () => {
             <TabsContent value="description" className="p-4 border rounded-b">
               <h3 className="text-lg font-semibold mb-2">Product Description</h3>
               <p className="mb-4">
-                {dbProduct && product.description 
-                  ? product.description 
-                  : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla quam velit, vulputate eu pharetra nec, mattis ac neque. Duis vulputate commodo lectus, ac blandit elit tincidunt id. Sed rhoncus, tortor sed eleifend tristique, tortor mauris molestie elit, et lacinia ipsum quam nec dui."}
+                {dbProduct && (product as SupabaseProduct).description 
+                  ? (product as SupabaseProduct).description 
+                  : "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla quam velit, vulputate eu pharetra nec, mattis ac neque. Duis vulputate commodo lectus, ac blandit elit tincidunt id."}
               </p>
               {!dbProduct && (
                 <p>
@@ -492,7 +375,7 @@ const ProductDetail = () => {
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 font-medium">Category</td>
-                    <td className="py-2">{dbProduct ? product.category || "Uncategorized" : product.category || "Electronics"}</td>
+                    <td className="py-2">{dbProduct ? (product as SupabaseProduct).category || "Uncategorized" : (product as Product).category || "Electronics"}</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 font-medium">Dimensions</td>

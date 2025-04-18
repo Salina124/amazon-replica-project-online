@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -61,7 +60,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Define the product interface
 interface Product {
   id: number;
   title: string;
@@ -79,7 +77,6 @@ interface Product {
   review_count?: number;
 }
 
-// Categories for product listing
 const PRODUCT_CATEGORIES = [
   "Electronics",
   "Computers",
@@ -118,7 +115,6 @@ const SellerDashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   
-  // Placeholder data for seller stats
   const [sellerStats, setSellerStats] = useState({
     totalSales: 0,
     totalOrders: 0,
@@ -127,7 +123,6 @@ const SellerDashboard = () => {
     avgRating: 0
   });
   
-  // Mock orders data
   const orders = [
     {
       id: 'ORD-12345',
@@ -171,7 +166,6 @@ const SellerDashboard = () => {
     },
   ];
   
-  // Fetch the user and their products
   useEffect(() => {
     const checkSellerStatus = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -184,14 +178,12 @@ const SellerDashboard = () => {
       
       setUser(session.user);
       
-      // Check if user is a seller or make them a seller
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
       
-      // If role is not set, update it to seller
       if (!profile?.role || profile.role !== 'seller') {
         await supabase
           .from('profiles')
@@ -199,17 +191,14 @@ const SellerDashboard = () => {
           .eq('id', session.user.id);
       }
       
-      // Fetch products for this seller
       fetchSellerProducts(session.user.id);
       
-      // Fetch seller stats
       fetchSellerStats(session.user.id);
     };
     
     checkSellerStatus();
   }, [navigate]);
   
-  // Fetch seller products
   const fetchSellerProducts = async (sellerId: string) => {
     setLoadingProducts(true);
     try {
@@ -225,7 +214,6 @@ const SellerDashboard = () => {
       } else {
         setProducts(data || []);
         
-        // Update seller stats
         if (data) {
           setSellerStats(prev => ({
             ...prev,
@@ -241,11 +229,8 @@ const SellerDashboard = () => {
     }
   };
   
-  // Fetch seller stats
   const fetchSellerStats = async (sellerId: string) => {
     try {
-      // This would be replaced with real stats from your database
-      // For now, we'll use mock data
       setSellerStats({
         totalSales: 12450.75,
         totalOrders: 256,
@@ -258,7 +243,6 @@ const SellerDashboard = () => {
     }
   };
   
-  // Handler for adding a new product
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -267,7 +251,6 @@ const SellerDashboard = () => {
       return;
     }
     
-    // Basic validation
     if (!productTitle || !productPrice || !productDescription || !productImage || !productCategory || !productStock) {
       toast.error('Please fill in all required fields');
       return;
@@ -306,10 +289,8 @@ const SellerDashboard = () => {
         description: `${productTitle} has been added to your inventory.`
       });
       
-      // Refresh the product list
       fetchSellerProducts(user.id);
       
-      // Reset form
       setProductTitle('');
       setProductPrice('');
       setProductDescription('');
@@ -326,7 +307,6 @@ const SellerDashboard = () => {
     }
   };
   
-  // Handler for updating a product
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -361,10 +341,8 @@ const SellerDashboard = () => {
         description: `${productTitle} has been updated.`
       });
       
-      // Refresh the product list
       fetchSellerProducts(user.id);
       
-      // Close the dialog
       setShowEditDialog(false);
       setEditingProduct(null);
     } catch (err) {
@@ -375,7 +353,6 @@ const SellerDashboard = () => {
     }
   };
   
-  // Handler for deleting a product
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     
@@ -395,10 +372,8 @@ const SellerDashboard = () => {
       
       toast.success('Product deleted successfully!');
       
-      // Refresh the product list
       fetchSellerProducts(user.id);
       
-      // Close the dialog
       setShowDeleteDialog(false);
       setProductToDelete(null);
     } catch (err) {
@@ -409,7 +384,6 @@ const SellerDashboard = () => {
     }
   };
   
-  // Edit product handler
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setProductTitle(product.title);
@@ -423,12 +397,18 @@ const SellerDashboard = () => {
     setShowEditDialog(true);
   };
   
-  // Open delete confirmation dialog
   const confirmDelete = (productId: number) => {
     setProductToDelete(productId);
     setShowDeleteDialog(true);
   };
-
+  
+  const navigateToAddProductTab = () => {
+    const tabTrigger = document.querySelector('[data-state="inactive"][data-value="add-product"]') as HTMLElement;
+    if (tabTrigger) {
+      tabTrigger.click();
+    }
+  };
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -437,7 +417,6 @@ const SellerDashboard = () => {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl font-bold mb-6">Seller Dashboard</h1>
           
-          {/* Seller Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <div className="bg-white p-4 rounded shadow flex items-center">
               <div className="rounded-full bg-blue-100 p-3 mr-3">
@@ -510,7 +489,6 @@ const SellerDashboard = () => {
               </TabsTrigger>
             </TabsList>
             
-            {/* Inventory Tab */}
             <TabsContent value="inventory" className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Your Inventory</h2>
@@ -604,7 +582,7 @@ const SellerDashboard = () => {
                   <h3 className="text-lg font-medium mb-2">No products yet</h3>
                   <p className="text-gray-500 mb-4">You haven't added any products to your inventory yet.</p>
                   <Button 
-                    onClick={() => document.querySelector('[data-state="inactive"][data-value="add-product"]')?.click()}
+                    onClick={navigateToAddProductTab}
                     className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
                   >
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -614,7 +592,6 @@ const SellerDashboard = () => {
               )}
             </TabsContent>
             
-            {/* Orders Tab */}
             <TabsContent value="orders" className="p-4">
               <h2 className="text-xl font-bold mb-4">Recent Orders</h2>
               
@@ -657,7 +634,6 @@ const SellerDashboard = () => {
               </div>
             </TabsContent>
             
-            {/* Add Product Tab */}
             <TabsContent value="add-product" className="p-4">
               <h2 className="text-xl font-bold mb-4">Add New Product</h2>
               
@@ -806,7 +782,6 @@ const SellerDashboard = () => {
               </form>
             </TabsContent>
             
-            {/* Settings Tab */}
             <TabsContent value="settings" className="p-4">
               <h2 className="text-xl font-bold mb-4">Seller Account Settings</h2>
               
@@ -866,7 +841,6 @@ const SellerDashboard = () => {
         </div>
       </main>
       
-      {/* Edit Product Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -1024,7 +998,6 @@ const SellerDashboard = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
