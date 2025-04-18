@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, MapPin, Menu, User, LogOut, MessageSquare, ChevronDown } from 'lucide-react';
@@ -245,6 +244,7 @@ const Header = () => {
           <Link to="/registry" className="text-white whitespace-nowrap hover:underline">Registry</Link>
           <Link to="/gift-cards" className="text-white whitespace-nowrap hover:underline">Gift Cards</Link>
           <Link to="/sell" className="text-white whitespace-nowrap hover:underline">Sell</Link>
+          <Link to="/contact-us" className="text-white whitespace-nowrap hover:underline">Contact Us</Link>
         </nav>
       </div>
     </header>

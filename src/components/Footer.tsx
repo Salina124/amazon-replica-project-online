@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
@@ -75,6 +74,7 @@ const Footer = () => {
             <li><Link to="/shipping-rates" className="hover:underline">Shipping Rates & Policies</Link></li>
             <li><Link to="/returns" className="hover:underline">Returns & Replacements</Link></li>
             <li><Link to="/manage-content" className="hover:underline">Manage Your Content and Devices</Link></li>
+            <li><Link to="/contact-us" className="hover:underline">Contact Us</Link></li>
             <li><Link to="/help" className="hover:underline">Help</Link></li>
           </ul>
         </div>
