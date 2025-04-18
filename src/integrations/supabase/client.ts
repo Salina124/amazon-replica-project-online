@@ -2,10 +2,45 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://ahtpatrcfmnvgvfiocgt.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFodHBhdHJjZm1udmd2ZmlvY2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MDI0NDEsImV4cCI6MjA2MDQ3ODQ0MX0.6BHac8rD0fI0S7WzqM0c7an874Hl8Vs2zWI-VCtxS0k";
+const SUPABASE_URL = 'https://ahtpatrcfmnvgvfiocgt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFodHBhdHJjZm1udmd2ZmlvY2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MDI0NDEsImV4cCI6MjA2MDQ3ODQ0MX0.6BHac8rD0fI0S7WzqM0c7an874Hl8Vs2zWI-VCtxS0k';
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Helper functions for common Supabase operations
+export const signIn = async (email: string, password: string) => {
+  return await supabase.auth.signInWithPassword({ email, password });
+};
+
+export const signUp = async (email: string, password: string, metadata?: object) => {
+  return await supabase.auth.signUp({ 
+    email, 
+    password,
+    options: {
+      data: metadata
+    }
+  });
+};
+
+export const signOut = async () => {
+  return await supabase.auth.signOut();
+};
+
+export const getCurrentUser = async () => {
+  const { data } = await supabase.auth.getUser();
+  return data.user;
+};
+
+export const getCurrentSession = async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+};
