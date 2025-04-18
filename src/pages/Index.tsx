@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -11,10 +11,59 @@ import { carouselImages } from '@/data/carousel';
 import { categories } from '@/data/categories';
 import { getFeaturedProducts, getRecommendedProducts } from '@/data/products';
 import { deals } from '@/data/deals';
+import { supabase } from '@/integrations/supabase/client';
+import { Product } from '@/data/products';
+import { toast } from 'sonner';
 
 const Index = () => {
   const featuredProducts = getFeaturedProducts();
   const recommendedProducts = getRecommendedProducts();
+  const [latestProducts, setLatestProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchLatestProducts = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (error) {
+          console.error('Error fetching latest products:', error);
+          toast.error('Failed to load latest products');
+          return;
+        }
+        
+        if (data) {
+          // Transform the data to match the Product interface
+          const formattedProducts: Product[] = data.map(item => ({
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            image: item.image_url,
+            rating: item.rating || 0,
+            reviewCount: item.review_count || 0,
+            discountPercent: item.discount_percent,
+            isPrime: item.is_prime || false,
+            sellerId: item.seller_id,
+            category: item.category
+          }));
+          
+          setLatestProducts(formattedProducts);
+        }
+      } catch (err) {
+        console.error('Failed to fetch latest products:', err);
+        toast.error('Failed to load latest products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchLatestProducts();
+  }, []);
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
@@ -38,6 +87,40 @@ const Index = () => {
                 link={category.link}
               />
             ))}
+          </div>
+        </section>
+        
+        {/* Latest Products Section */}
+        <section className="container mx-auto mt-10 px-4">
+          <div className="bg-white p-5 rounded shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Latest Products</h2>
+              <Link to="/products" className="text-amazon-light hover:text-amazon-orange text-sm hover:underline">
+                See all products
+              </Link>
+            </div>
+            
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, index) => (
+                  <div key={index} className="border rounded-md p-4 h-60 animate-pulse">
+                    <div className="bg-gray-200 h-32 mb-2 rounded"></div>
+                    <div className="bg-gray-200 h-4 w-3/4 mb-2 rounded"></div>
+                    <div className="bg-gray-200 h-4 w-1/2 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : latestProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {latestProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-gray-500">No latest products available.</p>
+              </div>
+            )}
           </div>
         </section>
         

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { 
@@ -19,67 +19,113 @@ import {
   DollarSign, 
   ShoppingBag, 
   Settings, 
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  Card,
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+// Define the product interface
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+  description: string;
+  image_url: string;
+  category: string;
+  seller_id: string;
+  is_prime: boolean;
+  discount_percent?: number;
+  stock: number;
+  sold: number;
+  created_at: string;
+  rating?: number;
+  review_count?: number;
+}
+
+// Categories for product listing
+const PRODUCT_CATEGORIES = [
+  "Electronics",
+  "Computers",
+  "Home & Kitchen",
+  "Toys & Games",
+  "Beauty & Personal Care",
+  "Clothing",
+  "Books",
+  "Sports & Outdoors",
+  "Automotive",
+  "Health & Household",
+  "Pet Supplies",
+  "Grocery",
+  "Gaming"
+];
 
 const SellerDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [productTitle, setProductTitle] = useState('');
   const [productPrice, setProductPrice] = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [productImage, setProductImage] = useState('');
+  const [productCategory, setProductCategory] = useState('');
+  const [productStock, setProductStock] = useState('');
+  const [productDiscount, setProductDiscount] = useState('');
+  const [isPrime, setIsPrime] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<number | null>(null);
+  
   const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
   
   // Placeholder data for seller stats
-  const sellerStats = {
-    totalSales: 12450.75,
-    totalOrders: 256,
-    totalProducts: 42,
-    pendingOrders: 8,
-    avgRating: 4.7
-  };
-  
-  // Mock inventory data
-  const inventory = [
-    { 
-      id: 1, 
-      title: 'Wireless Bluetooth Headphones', 
-      price: 59.99, 
-      stock: 15, 
-      sold: 87 
-    },
-    { 
-      id: 2, 
-      title: 'Smart Watch with Heart Rate Monitor', 
-      price: 89.99, 
-      stock: 8, 
-      sold: 132 
-    },
-    { 
-      id: 3, 
-      title: 'Portable External SSD 1TB', 
-      price: 129.99, 
-      stock: 22, 
-      sold: 64 
-    },
-    { 
-      id: 4, 
-      title: 'Ultra HD 4K Action Camera', 
-      price: 149.99, 
-      stock: 5, 
-      sold: 45 
-    },
-    { 
-      id: 5, 
-      title: 'Noise Cancelling Earbuds', 
-      price: 79.99, 
-      stock: 0, 
-      sold: 93 
-    },
-  ];
+  const [sellerStats, setSellerStats] = useState({
+    totalSales: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    pendingOrders: 0,
+    avgRating: 0
+  });
   
   // Mock orders data
   const orders = [
@@ -125,27 +171,8 @@ const SellerDashboard = () => {
     },
   ];
   
-  const handleAddProduct = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate adding a product
-    setTimeout(() => {
-      toast.success('Product added successfully!', {
-        description: `${productTitle} has been added to your inventory.`
-      });
-      
-      // Reset form
-      setProductTitle('');
-      setProductPrice('');
-      setProductDescription('');
-      setProductImage('');
-      setIsLoading(false);
-    }, 1500);
-  };
-  
-  // Check if user is a seller
-  React.useEffect(() => {
+  // Fetch the user and their products
+  useEffect(() => {
     const checkSellerStatus = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -155,16 +182,252 @@ const SellerDashboard = () => {
         return;
       }
       
-      const userRole = session.user.user_metadata?.role;
+      setUser(session.user);
       
-      if (userRole !== 'seller') {
-        toast.error('You do not have seller privileges');
-        navigate('/');
+      // Check if user is a seller or make them a seller
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      // If role is not set, update it to seller
+      if (!profile?.role || profile.role !== 'seller') {
+        await supabase
+          .from('profiles')
+          .update({ role: 'seller' })
+          .eq('id', session.user.id);
       }
+      
+      // Fetch products for this seller
+      fetchSellerProducts(session.user.id);
+      
+      // Fetch seller stats
+      fetchSellerStats(session.user.id);
     };
     
     checkSellerStatus();
   }, [navigate]);
+  
+  // Fetch seller products
+  const fetchSellerProducts = async (sellerId: string) => {
+    setLoadingProducts(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('seller_id', sellerId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching products:', error);
+        toast.error('Failed to load your products');
+      } else {
+        setProducts(data || []);
+        
+        // Update seller stats
+        if (data) {
+          setSellerStats(prev => ({
+            ...prev,
+            totalProducts: data.length
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      toast.error('Failed to load your products');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+  
+  // Fetch seller stats
+  const fetchSellerStats = async (sellerId: string) => {
+    try {
+      // This would be replaced with real stats from your database
+      // For now, we'll use mock data
+      setSellerStats({
+        totalSales: 12450.75,
+        totalOrders: 256,
+        totalProducts: products.length,
+        pendingOrders: 8,
+        avgRating: 4.7
+      });
+    } catch (err) {
+      console.error('Failed to fetch seller stats:', err);
+    }
+  };
+  
+  // Handler for adding a new product
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast.error('You must be logged in to add products');
+      return;
+    }
+    
+    // Basic validation
+    if (!productTitle || !productPrice || !productDescription || !productImage || !productCategory || !productStock) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      const newProduct = {
+        title: productTitle,
+        price: parseFloat(productPrice),
+        description: productDescription,
+        image_url: productImage,
+        category: productCategory,
+        stock: parseInt(productStock),
+        seller_id: user.id,
+        is_prime: isPrime,
+        discount_percent: productDiscount ? parseFloat(productDiscount) : null,
+        sold: 0,
+        rating: 0,
+        review_count: 0
+      };
+      
+      const { data, error } = await supabase
+        .from('products')
+        .insert(newProduct)
+        .select();
+      
+      if (error) {
+        console.error('Error adding product:', error);
+        toast.error('Failed to add product');
+        return;
+      }
+      
+      toast.success('Product added successfully!', {
+        description: `${productTitle} has been added to your inventory.`
+      });
+      
+      // Refresh the product list
+      fetchSellerProducts(user.id);
+      
+      // Reset form
+      setProductTitle('');
+      setProductPrice('');
+      setProductDescription('');
+      setProductImage('');
+      setProductCategory('');
+      setProductStock('');
+      setProductDiscount('');
+      setIsPrime(false);
+    } catch (err) {
+      console.error('Failed to add product:', err);
+      toast.error('Failed to add product');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Handler for updating a product
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingProduct) return;
+    
+    setIsSaving(true);
+    
+    try {
+      const updatedProduct = {
+        title: productTitle,
+        price: parseFloat(productPrice),
+        description: productDescription,
+        image_url: productImage,
+        category: productCategory,
+        stock: parseInt(productStock),
+        is_prime: isPrime,
+        discount_percent: productDiscount ? parseFloat(productDiscount) : null,
+      };
+      
+      const { error } = await supabase
+        .from('products')
+        .update(updatedProduct)
+        .eq('id', editingProduct.id);
+      
+      if (error) {
+        console.error('Error updating product:', error);
+        toast.error('Failed to update product');
+        return;
+      }
+      
+      toast.success('Product updated successfully!', {
+        description: `${productTitle} has been updated.`
+      });
+      
+      // Refresh the product list
+      fetchSellerProducts(user.id);
+      
+      // Close the dialog
+      setShowEditDialog(false);
+      setEditingProduct(null);
+    } catch (err) {
+      console.error('Failed to update product:', err);
+      toast.error('Failed to update product');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Handler for deleting a product
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productToDelete);
+      
+      if (error) {
+        console.error('Error deleting product:', error);
+        toast.error('Failed to delete product');
+        return;
+      }
+      
+      toast.success('Product deleted successfully!');
+      
+      // Refresh the product list
+      fetchSellerProducts(user.id);
+      
+      // Close the dialog
+      setShowDeleteDialog(false);
+      setProductToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete product:', err);
+      toast.error('Failed to delete product');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  // Edit product handler
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductTitle(product.title);
+    setProductPrice(product.price.toString());
+    setProductDescription(product.description || '');
+    setProductImage(product.image_url);
+    setProductCategory(product.category || '');
+    setProductStock(product.stock.toString());
+    setProductDiscount(product.discount_percent ? product.discount_percent.toString() : '');
+    setIsPrime(product.is_prime);
+    setShowEditDialog(true);
+  };
+  
+  // Open delete confirmation dialog
+  const confirmDelete = (productId: number) => {
+    setProductToDelete(productId);
+    setShowDeleteDialog(true);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -251,45 +514,104 @@ const SellerDashboard = () => {
             <TabsContent value="inventory" className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Your Inventory</h2>
-                <Button className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover">
+                <Button 
+                  className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
+                  onClick={() => {
+                    setProductTitle('');
+                    setProductPrice('');
+                    setProductDescription('');
+                    setProductImage('');
+                    setProductCategory('');
+                    setProductStock('');
+                    setProductDiscount('');
+                    setIsPrime(false);
+                  }}
+                >
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Add New Product
                 </Button>
               </div>
               
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border py-2 px-4 text-left">Product</th>
-                      <th className="border py-2 px-4 text-right">Price</th>
-                      <th className="border py-2 px-4 text-right">In Stock</th>
-                      <th className="border py-2 px-4 text-right">Sold</th>
-                      <th className="border py-2 px-4 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inventory.map((item) => (
-                      <tr key={item.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">{item.title}</td>
-                        <td className="py-3 px-4 text-right">${item.price.toFixed(2)}</td>
-                        <td className="py-3 px-4 text-right">
-                          <span className={`font-medium ${item.stock === 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {item.stock}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">{item.sold}</td>
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex justify-center gap-2">
-                            <Button variant="outline" size="sm">Edit</Button>
-                            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">Delete</Button>
-                          </div>
-                        </td>
+              {loadingProducts ? (
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-amazon-button" />
+                  <span className="ml-2">Loading your products...</span>
+                </div>
+              ) : products.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border py-2 px-4 text-left">Product</th>
+                        <th className="border py-2 px-4 text-right">Price</th>
+                        <th className="border py-2 px-4 text-right">In Stock</th>
+                        <th className="border py-2 px-4 text-right">Sold</th>
+                        <th className="border py-2 px-4 text-center">Category</th>
+                        <th className="border py-2 px-4 text-center">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {products.map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center">
+                              <img 
+                                src={item.image_url} 
+                                alt={item.title} 
+                                className="w-12 h-12 object-contain mr-3"
+                                onError={(e) => {
+                                  e.currentTarget.src = 'https://placehold.co/100x100?text=No+Image';
+                                }} 
+                              />
+                              <div className="truncate max-w-xs">{item.title}</div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-right">${item.price.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-right">
+                            <span className={`font-medium ${item.stock === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {item.stock}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">{item.sold || 0}</td>
+                          <td className="py-3 px-4 text-center">{item.category || 'Uncategorized'}</td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex justify-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditProduct(item)}
+                              >
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => confirmDelete(item.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <Package className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No products yet</h3>
+                  <p className="text-gray-500 mb-4">You haven't added any products to your inventory yet.</p>
+                  <Button 
+                    onClick={() => document.querySelector('[data-state="inactive"][data-value="add-product"]')?.click()}
+                    className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Your First Product
+                  </Button>
+                </div>
+              )}
             </TabsContent>
             
             {/* Orders Tab */}
@@ -367,6 +689,70 @@ const SellerDashboard = () => {
                   </div>
                 </div>
                 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Select 
+                      value={productCategory} 
+                      onValueChange={setProductCategory}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRODUCT_CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="stock">Stock Quantity</Label>
+                    <Input 
+                      id="stock" 
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={productStock}
+                      onChange={(e) => setProductStock(e.target.value)}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="discount">Discount Percentage (%)</Label>
+                    <Input 
+                      id="discount" 
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={productDiscount}
+                      onChange={(e) => setProductDiscount(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div className="flex items-end space-x-2 h-full">
+                    <div className="flex items-center space-x-2 h-10">
+                      <input
+                        type="checkbox"
+                        id="prime"
+                        checked={isPrime}
+                        onChange={(e) => setIsPrime(e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="prime">Eligible for Prime Delivery</Label>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="space-y-2 mb-4">
                   <Label htmlFor="description">Description</Label>
                   <Textarea 
@@ -407,9 +793,15 @@ const SellerDashboard = () => {
                 <Button 
                   type="submit" 
                   className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
-                  disabled={isLoading}
+                  disabled={isSaving}
                 >
-                  {isLoading ? 'Adding Product...' : 'Add Product'}
+                  {isSaving ? 
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adding Product...
+                    </> : 
+                    'Add Product'
+                  }
                 </Button>
               </form>
             </TabsContent>
@@ -473,6 +865,193 @@ const SellerDashboard = () => {
           </Tabs>
         </div>
       </main>
+      
+      {/* Edit Product Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>
+              Make changes to your product details below.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleUpdateProduct} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Product Title</Label>
+                <Input 
+                  id="edit-title" 
+                  value={productTitle}
+                  onChange={(e) => setProductTitle(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-price">Price ($)</Label>
+                <Input 
+                  id="edit-price" 
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-category">Category</Label>
+                <Select 
+                  value={productCategory} 
+                  onValueChange={setProductCategory}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-stock">Stock Quantity</Label>
+                <Input 
+                  id="edit-stock" 
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={productStock}
+                  onChange={(e) => setProductStock(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-discount">Discount Percentage (%)</Label>
+                <Input 
+                  id="edit-discount" 
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={productDiscount}
+                  onChange={(e) => setProductDiscount(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex items-end space-x-2 h-full">
+                <div className="flex items-center space-x-2 h-10">
+                  <input
+                    type="checkbox"
+                    id="edit-prime"
+                    checked={isPrime}
+                    onChange={(e) => setIsPrime(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="edit-prime">Eligible for Prime Delivery</Label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea 
+                id="edit-description"
+                value={productDescription}
+                onChange={(e) => setProductDescription(e.target.value)} 
+                rows={5}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-image">Product Image URL</Label>
+              <Input 
+                id="edit-image" 
+                type="url"
+                value={productImage}
+                onChange={(e) => setProductImage(e.target.value)}
+                required
+              />
+              
+              {productImage && (
+                <div className="mt-2 border rounded p-4 flex justify-center">
+                  <img 
+                    src={productImage} 
+                    alt="Product preview" 
+                    className="h-40 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://placehold.co/200x200?text=Invalid+Image';
+                    }} 
+                  />
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowEditDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
+                disabled={isSaving}
+              >
+                {isSaving ? 
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </> : 
+                  'Save Changes'
+                }
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              product from your inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteProduct}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isDeleting}
+            >
+              {isDeleting ? 
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </> : 
+                'Delete'
+              }
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <Footer />
     </div>
