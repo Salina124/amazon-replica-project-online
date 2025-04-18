@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Star, Check, ShieldCheck, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -7,13 +6,13 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { getProductById, getRecommendedProducts } from '@/data/products';
-import { useToast } from '@/components/ui/use-toast';
+import { useCart } from '@/contexts/CartContext';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const { addToCart } = useCart();
   
   // Convert id to number for lookup
   const productId = id ? parseInt(id) : 0;
@@ -51,17 +50,12 @@ const ProductDetail = () => {
     : null;
     
   const handleAddToCart = () => {
-    toast({
-      title: "Added to Cart",
-      description: `${product.title} (Qty: ${quantity}) has been added to your cart.`,
-    });
+    addToCart(product, quantity);
   };
   
   const handleBuyNow = () => {
-    toast({
-      title: "Proceeding to Checkout",
-      description: "This would navigate to the checkout page in a complete implementation.",
-    });
+    addToCart(product, quantity);
+    window.location.href = '/cart';
   };
   
   const nextImage = () => {

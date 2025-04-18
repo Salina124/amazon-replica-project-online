@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,50 +7,24 @@ import { Separator } from '@/components/ui/separator';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { products } from '@/data/products';
-
-// Sample cart items
-const initialCartItems = [
-  { ...products[0], quantity: 1 },
-  { ...products[3], quantity: 2 },
-];
+import { useCart } from '@/contexts/CartContext';
 
 const Cart = () => {
-  const [cartItems, setCartItems] = useState(initialCartItems);
-  const { toast } = useToast();
-  
-  // Calculate subtotal
-  const subtotal = cartItems.reduce(
-    (total, item) => {
-      const itemPrice = item.discountPercent 
-        ? item.price * (1 - item.discountPercent / 100) 
-        : item.price;
-      return total + itemPrice * item.quantity;
-    }, 0
-  );
-  
+  const { cartItems, removeFromCart, updateQuantity, subtotal } = useCart();
   const itemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
   
-  const handleQuantityChange = (productId: number, newQuantity: number) => {
-    setCartItems(
-      cartItems.map((item) =>
-        item.id === productId ? { ...item, quantity: newQuantity } : item
-      )
-    );
+  const handleRemoveItem = (productId: number) => {
+    removeFromCart(productId);
   };
   
-  const handleRemoveItem = (productId: number) => {
-    setCartItems(cartItems.filter((item) => item.id !== productId));
-    toast({
-      title: "Item Removed",
-      description: "The item has been removed from your cart.",
-    });
+  const handleQuantityChange = (productId: number, newQuantity: number) => {
+    updateQuantity(productId, newQuantity);
   };
   
   const handleProceedToCheckout = () => {
-    toast({
-      title: "Proceeding to Checkout",
+    toast('Proceeding to Checkout', {
       description: "This would navigate to the checkout page in a complete implementation.",
     });
   };

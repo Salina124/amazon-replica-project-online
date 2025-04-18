@@ -13,6 +13,13 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CheckCircle } from 'lucide-react';
 
 export default function Auth() {
@@ -20,6 +27,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<'customer' | 'seller'>('customer');
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
   const [verificationSent, setVerificationSent] = useState(false);
   const navigate = useNavigate();
@@ -79,6 +87,7 @@ export default function Auth() {
         options: {
           data: {
             full_name: name,
+            role: role,
           },
         },
       });
@@ -112,13 +121,22 @@ export default function Auth() {
               </AlertDescription>
             </Alert>
             
-            <h2 className="text-xl font-bold mb-4">Check your email</h2>
-            <p className="text-gray-600 mb-4">
-              Please check your email inbox and click on the verification link to complete your registration.
-            </p>
-            <p className="text-gray-600 mb-4">
-              If you don't see the email in your inbox, please check your spam folder.
-            </p>
+            <div className="bg-white p-6 border border-gray-200 rounded-md mb-4">
+              <div className="flex justify-center mb-4">
+                <img src="/placeholder.svg" alt="Email icon" className="w-16 h-16" />
+              </div>
+              
+              <h2 className="text-xl font-bold mb-4 text-center">Check your email</h2>
+              <p className="text-gray-600 mb-4">
+                We've sent a verification link to <strong>{email}</strong>
+              </p>
+              <p className="text-gray-600 mb-4">
+                Click the link in the email to verify your account and complete your registration.
+              </p>
+              <p className="text-sm text-gray-500 mb-4">
+                If you don't see the email in your inbox, please check your spam folder.
+              </p>
+            </div>
             
             <div className="mt-6">
               <Button 
@@ -222,6 +240,27 @@ export default function Auth() {
                       required
                     />
                     <p className="text-xs text-gray-600">Passwords must be at least 6 characters.</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="account-type">Account Type</Label>
+                    <Select 
+                      value={role} 
+                      onValueChange={(value) => setRole(value as 'customer' | 'seller')}
+                    >
+                      <SelectTrigger id="account-type">
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="customer">Customer</SelectItem>
+                        <SelectItem value="seller">Seller</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-600">
+                      {role === 'seller' 
+                        ? 'Seller accounts can list and sell products.' 
+                        : 'Customer accounts can purchase products.'}
+                    </p>
                   </div>
 
                   <Button 

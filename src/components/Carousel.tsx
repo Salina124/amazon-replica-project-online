@@ -33,7 +33,7 @@ const Carousel: React.FC<CarouselProps> = ({ images }) => {
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {images.map((image, index) => (
-          <div key={index} className="min-w-full h-[200px] md:h-[250px] lg:h-[300px]">
+          <div key={index} className="min-w-full h-[150px] md:h-[200px] lg:h-[250px]">
             <img 
               src={image} 
               alt={`Slide ${index}`} 

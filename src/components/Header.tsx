@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, MapPin, Menu, User, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, MapPin, Menu, User, LogOut, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -15,23 +15,38 @@ import Logo from './Logo';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCart } from '@/contexts/CartContext';
 
 const Header = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('customer'); // Default role is customer
   const { toast: showToast } = useToast();
   const navigate = useNavigate();
+  const { totalItems } = useCart();
   
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
+      
+      // Check user role in metadata if user exists
+      if (session?.user?.user_metadata?.role) {
+        setUserRole(session.user.user_metadata.role);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user || null);
+        
+        // Update role when auth state changes
+        if (session?.user?.user_metadata?.role) {
+          setUserRole(session.user.user_metadata.role);
+        } else {
+          setUserRole('customer'); // Reset to default if no role found
+        }
       }
     );
 
@@ -118,6 +133,24 @@ const Header = () => {
                   <span>Your Orders</span>
                 </Link>
               </DropdownMenuItem>
+              
+              {/* Seller Dashboard Link (only for sellers) */}
+              {userRole === 'seller' && (
+                <DropdownMenuItem asChild>
+                  <Link to="/seller-dashboard" className="cursor-pointer">
+                    <span>Seller Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              
+              {/* Chat Link */}
+              <DropdownMenuItem asChild>
+                <Link to="/chat" className="cursor-pointer">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <span>Messages</span>
+                </Link>
+              </DropdownMenuItem>
+              
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
@@ -143,7 +176,7 @@ const Header = () => {
           <div className="relative">
             <ShoppingCart size={28} />
             <span className="absolute -top-1 -right-1 bg-amazon-orange text-amazon-default h-5 w-5 flex items-center justify-center rounded-full text-xs font-bold">
-              0
+              {totalItems}
             </span>
           </div>
           <span className="hidden sm:inline-block ml-1 font-bold">Cart</span>
