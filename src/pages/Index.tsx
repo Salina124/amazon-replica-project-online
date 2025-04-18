@@ -38,7 +38,6 @@ const Index = () => {
         }
         
         if (data) {
-          // Transform the data to match the Product interface
           const formattedProducts: Product[] = data.map(item => ({
             id: item.id,
             title: item.title,
@@ -63,6 +62,38 @@ const Index = () => {
     };
     
     fetchLatestProducts();
+
+    // Set up real-time subscription for new products
+    const channel = supabase
+      .channel('public:products')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'products' },
+        (payload) => {
+          if (payload.new) {
+            const newProduct: Product = {
+              id: payload.new.id,
+              title: payload.new.title,
+              price: payload.new.price,
+              image: payload.new.image_url,
+              rating: payload.new.rating || 0,
+              reviewCount: payload.new.review_count || 0,
+              discountPercent: payload.new.discount_percent,
+              isPrime: payload.new.is_prime || false,
+              sellerId: payload.new.seller_id,
+              category: payload.new.category
+            };
+            
+            setLatestProducts(prev => [newProduct, ...prev.slice(0, 4)]);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
   
   return (

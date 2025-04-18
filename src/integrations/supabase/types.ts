@@ -68,26 +68,86 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          discount_percent: number | null
+          id: number
+          image_url: string
+          is_prime: boolean | null
+          price: number
+          rating: number | null
+          review_count: number | null
+          seller_id: string
+          sold: number
+          stock: number
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          discount_percent?: number | null
+          id?: number
+          image_url: string
+          is_prime?: boolean | null
+          price: number
+          rating?: number | null
+          review_count?: number | null
+          seller_id: string
+          sold?: number
+          stock?: number
+          title: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          discount_percent?: number | null
+          id?: number
+          image_url?: string
+          is_prime?: boolean | null
+          price?: number
+          rating?: number | null
+          review_count?: number | null
+          seller_id?: string
+          sold?: number
+          stock?: number
+          title?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
+          company_name: string | null
           created_at: string
           full_name: string | null
           id: string
+          role: string | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
+          company_name?: string | null
           created_at?: string
           full_name?: string | null
           id: string
+          role?: string | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
+          company_name?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          role?: string | null
           updated_at?: string
         }
         Relationships: []

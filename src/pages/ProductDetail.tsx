@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Star, Minus, Plus, ShoppingCart, Heart, Share2, MessageSquare, Store, User } from 'lucide-react';
@@ -31,6 +30,85 @@ interface SellerProfile {
   rating?: number;
   products_count?: number;
 }
+
+// Add a new Seller Details component
+const SellerDetails = ({ sellerId }: { sellerId: string }) => {
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
+  const [sellerProductCount, setSellerProductCount] = useState(0);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchSellerDetails = async () => {
+      try {
+        // Fetch seller profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', sellerId)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching seller profile:', profileError);
+          return;
+        }
+
+        // Fetch seller product count
+        const { count, error: countError } = await supabase
+          .from('products')
+          .select('*', { count: 'exact' })
+          .eq('seller_id', sellerId);
+
+        if (countError) {
+          console.error('Error fetching seller product count:', countError);
+          return;
+        }
+
+        setSellerProfile(profileData);
+        setSellerProductCount(count || 0);
+      } catch (err) {
+        console.error('Failed to fetch seller details:', err);
+      }
+    };
+
+    fetchSellerDetails();
+  }, [sellerId]);
+
+  if (!sellerProfile) return null;
+
+  return (
+    <div className="bg-white p-4 rounded-md shadow-sm">
+      <h3 className="text-lg font-semibold mb-2">Seller Information</h3>
+      <div className="flex items-center mb-2">
+        <div className="mr-4">
+          <img 
+            src={sellerProfile.avatar_url || 'https://via.placeholder.com/50'} 
+            alt={sellerProfile.full_name} 
+            className="w-12 h-12 rounded-full object-cover"
+          />
+        </div>
+        <div>
+          <p className="font-medium">{sellerProfile.full_name || 'Seller'}</p>
+          {sellerProfile.company_name && (
+            <p className="text-sm text-gray-600">{sellerProfile.company_name}</p>
+          )}
+        </div>
+      </div>
+      {sellerProfile.bio && (
+        <p className="text-sm text-gray-700 mb-2">{sellerProfile.bio}</p>
+      )}
+      <div className="text-sm text-gray-600">
+        Products listed: {sellerProductCount}
+      </div>
+      <button 
+        onClick={() => navigate(`/seller/${sellerId}`)}
+        className="mt-2 text-sm text-blue-600 hover:underline"
+      >
+        View Seller Profile
+      </button>
+    </div>
+  );
+};
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -286,69 +364,15 @@ const ProductDetail = () => {
             </div>
             
             {/* Seller Information Card */}
-            {seller && (
-              <Card className="mb-4 border border-gray-200">
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <Store className="h-4 w-4 mr-1" />
-                    Sold by: {seller.company_name || seller.full_name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="py-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    {seller.avatar_url ? (
-                      <img 
-                        src={seller.avatar_url} 
-                        alt={seller.full_name} 
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <User className="h-6 w-6 text-gray-400" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="flex items-center">
-                        <div className="flex mr-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              size={14}
-                              className={i < Math.floor(seller.rating || 0) ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs">{seller.rating?.toFixed(1) || "N/A"}</span>
-                      </div>
-                      <p className="text-xs text-gray-600">{seller.products_count} products</p>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="py-3 flex justify-between">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleViewSellerProfile}
-                  >
-                    Visit Store
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleContactSeller}
-                    className="bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
-                  >
-                    <MessageSquare className="h-4 w-4 mr-1" />
-                    Contact Seller
-                  </Button>
-                </CardFooter>
-              </Card>
+            {product?.seller_id && (
+              <SellerDetails sellerId={product.seller_id} />
             )}
             
             <div className="mb-4">
               {discountPrice ? (
                 <>
                   <div className="flex items-center">
-                    <span className="text-sm">List Price: </span>
+                    <span className="text-sm">List Price: </span> 
                     <span className="text-sm text-gray-500 line-through ml-1">${formattedPrice}</span>
                   </div>
                   <div className="flex items-center">
