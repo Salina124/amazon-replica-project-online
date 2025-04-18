@@ -22,64 +22,86 @@ export function useChat(userId: string | undefined) {
     // Fetch conversations
     const fetchConversations = async () => {
       try {
-        const { data, error } = await supabase
+        // First, get the basic conversation data
+        const { data: conversationsData, error: conversationsError } = await supabase
           .from('conversations')
-          .select(`
-            *,
-            profiles!conversations_customer_id_fkey(id, full_name, avatar_url),
-            profiles!conversations_seller_id_fkey(id, full_name, avatar_url),
-            messages(*)
-          `)
+          .select('*')
           .or(`customer_id.eq.${userId},seller_id.eq.${userId}`)
           .order('updated_at', { ascending: false });
 
-        if (error) {
+        if (conversationsError) {
           toast.error('Error loading conversations');
-          console.error('Error loading conversations:', error);
+          console.error('Error loading conversations:', conversationsError);
           return;
         }
 
-        if (!data) {
+        if (!conversationsData || conversationsData.length === 0) {
           setConversations([]);
           setLoading(false);
           return;
         }
 
-        const formattedConversations: Conversation[] = data.map(conv => {
-          const isCustomer = conv.customer_id === userId;
-          
-          // Safely access the profile data with proper typing
-          const customerProfile = conv.profiles?.conversations_customer_id_fkey as ProfileData | null;
-          const sellerProfile = conv.profiles?.conversations_seller_id_fkey as ProfileData | null;
-          
-          // Determine which profile to use based on user role
-          const participantProfile = isCustomer ? sellerProfile : customerProfile;
-          
-          // Get the last message from the conversation if available
-          const lastMessage = conv.messages && conv.messages.length > 0 
-            ? conv.messages[0] 
-            : null;
+        // For each conversation, get the profile data and messages separately
+        const formattedConversations: Conversation[] = await Promise.all(
+          conversationsData.map(async (conv) => {
+            const isCustomer = conv.customer_id === userId;
+            const participantId = isCustomer ? conv.seller_id : conv.customer_id;
+            
+            // Get participant profile
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', participantId)
+              .single();
+            
+            if (profileError) {
+              console.error('Error loading profile:', profileError);
+            }
+            
+            // Get the last message for this conversation
+            const { data: messageData, error: messageError } = await supabase
+              .from('messages')
+              .select('*')
+              .eq('conversation_id', conv.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+              
+            if (messageError && messageError.code !== 'PGRST116') {
+              console.error('Error loading message:', messageError);
+            }
+            
+            // Count unread messages
+            const { count, error: countError } = await supabase
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('conversation_id', conv.id)
+              .eq('sender_id', participantId)
+              .is('read_at', null);
+              
+            if (countError) {
+              console.error('Error counting unread messages:', countError);
+            }
 
-          return {
-            id: conv.id,
-            participantId: isCustomer ? conv.seller_id : conv.customer_id,
-            participantName: participantProfile?.full_name || 'Unknown User',
-            participantAvatar: participantProfile?.avatar_url,
-            isParticipantOnline: false, // We'll update this with realtime presence
-            lastMessage: lastMessage ? {
-              text: lastMessage.content,
-              timestamp: lastMessage.created_at,
-              isFromParticipant: lastMessage.sender_id === (isCustomer ? conv.seller_id : conv.customer_id)
-            } : {
-              text: 'No messages yet',
-              timestamp: conv.created_at,
-              isFromParticipant: false
-            },
-            unreadCount: conv.messages ? conv.messages.filter(m => 
-              m.sender_id === (isCustomer ? conv.seller_id : conv.customer_id) && !m.read_at
-            ).length : 0
-          };
-        });
+            return {
+              id: conv.id,
+              participantId: participantId,
+              participantName: profileData?.full_name || 'Unknown User',
+              participantAvatar: profileData?.avatar_url,
+              isParticipantOnline: false, // We'll update this with realtime presence
+              lastMessage: messageData ? {
+                text: messageData.content,
+                timestamp: messageData.created_at,
+                isFromParticipant: messageData.sender_id === participantId
+              } : {
+                text: 'No messages yet',
+                timestamp: conv.created_at,
+                isFromParticipant: false
+              },
+              unreadCount: count || 0
+            };
+          })
+        );
 
         setConversations(formattedConversations);
         setLoading(false);
