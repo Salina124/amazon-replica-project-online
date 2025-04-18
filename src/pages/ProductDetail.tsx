@@ -7,24 +7,11 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { products } from '@/data/products';
+import { Product } from '@/data/products';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import Carousel from '@/components/Carousel';
-
-// Update Product interface to include sellerId
-interface Product {
-  id: number;
-  title: string;
-  price: number;
-  image: string;
-  category: string;
-  rating: number;
-  reviewCount: number;
-  discountPercent?: number;
-  isPrime?: boolean;
-  sellerId?: string; // Added sellerId property
-}
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,15 +20,12 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [user, setUser] = useState<any>(null);
   
-  // Find product by ID
   const product = products.find(p => p.id === parseInt(id || '0'));
   
-  // Related products (simple implementation - just show other products)
   const relatedProducts = products
     .filter(p => p.id !== parseInt(id || '0'))
     .slice(0, 4);
   
-  // Sample product images for carousel
   const productImages = [
     product?.image || '',
     'https://via.placeholder.com/600x400?text=Product+Image+2',
@@ -50,12 +34,10 @@ const ProductDetail = () => {
   ];
   
   useEffect(() => {
-    // Check if user is authenticated
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
     });
     
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user || null);
@@ -101,7 +83,6 @@ const ProductDetail = () => {
       return;
     }
     
-    // Pass sellerId to chat page if available, otherwise use a default
     const sellerId = product?.sellerId || 'default-seller';
     navigate(`/chat?seller=${sellerId}`);
   };
@@ -127,10 +108,8 @@ const ProductDetail = () => {
     );
   }
   
-  // Format price with 2 decimal places
   const formattedPrice = product.price.toFixed(2);
   
-  // Calculate discount price if applicable
   const discountPrice = product.discountPercent
     ? (product.price * (1 - product.discountPercent / 100)).toFixed(2)
     : null;
@@ -140,16 +119,13 @@ const ProductDetail = () => {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-          {/* Product Images */}
           <div>
             <Carousel images={productImages} />
           </div>
           
-          {/* Product Details */}
           <div>
             <h1 className="text-2xl font-bold mb-2">{product.title}</h1>
             
-            {/* Ratings */}
             <div className="flex items-center mb-4">
               <div className="flex mr-2">
                 {[...Array(5)].map((_, i) => (
@@ -165,7 +141,6 @@ const ProductDetail = () => {
               </span>
             </div>
             
-            {/* Price */}
             <div className="mb-4">
               {discountPrice ? (
                 <>
@@ -189,7 +164,6 @@ const ProductDetail = () => {
               )}
             </div>
             
-            {/* Prime badge */}
             {product.isPrime && (
               <div className="flex items-center mb-4">
                 <span className="text-blue-600 font-bold mr-1">Prime</span>
@@ -197,7 +171,6 @@ const ProductDetail = () => {
               </div>
             )}
             
-            {/* Description */}
             <div className="mb-6">
               <h2 className="text-lg font-semibold mb-2">About this item</h2>
               <p className="text-gray-700">
@@ -205,7 +178,6 @@ const ProductDetail = () => {
               </p>
             </div>
             
-            {/* Quantity Selector */}
             <div className="mb-6">
               <div className="flex items-center">
                 <span className="mr-4">Quantity:</span>
@@ -229,7 +201,6 @@ const ProductDetail = () => {
               </div>
             </div>
             
-            {/* Action Buttons */}
             <div className="space-y-3">
               <Button 
                 onClick={handleAddToCart}
@@ -256,7 +227,6 @@ const ProductDetail = () => {
               </Button>
             </div>
             
-            {/* Share */}
             <div className="mt-6">
               <Button variant="ghost" size="sm" className="text-blue-600">
                 <Share2 className="mr-1" size={16} />
@@ -266,7 +236,6 @@ const ProductDetail = () => {
           </div>
         </div>
         
-        {/* Product Information Tabs */}
         <div className="mb-12">
           <Tabs defaultValue="description">
             <TabsList className="w-full justify-start">
@@ -366,7 +335,6 @@ const ProductDetail = () => {
           </Tabs>
         </div>
         
-        {/* Related Products */}
         <div>
           <h2 className="text-2xl font-bold mb-4">Related Products</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

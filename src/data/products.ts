@@ -1,6 +1,20 @@
 
 import { Product } from "@/components/ProductCard";
 
+// Update the Product interface in the file to include sellerId
+export interface Product {
+  id: number;
+  title: string;
+  price: number;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  discountPercent?: number;
+  isPrime?: boolean;
+  sellerId?: string;
+  category?: string;
+}
+
 // Mock data for products
 export const products: Product[] = [
   {
@@ -11,7 +25,9 @@ export const products: Product[] = [
     rating: 4.7,
     reviewCount: 23482,
     isPrime: true,
-    discountPercent: 20
+    discountPercent: 20,
+    sellerId: "seller-123",
+    category: "Electronics"
   },
   {
     id: 2,
@@ -21,7 +37,9 @@ export const products: Product[] = [
     rating: 4.5,
     reviewCount: 1254,
     isPrime: true,
-    discountPercent: 15
+    discountPercent: 15,
+    sellerId: "seller-456",
+    category: "Electronics"
   },
   {
     id: 3,
@@ -30,7 +48,9 @@ export const products: Product[] = [
     image: "https://m.media-amazon.com/images/I/61Ww4abGclL._AC_SL1000_.jpg",
     rating: 4.8,
     reviewCount: 32765,
-    isPrime: true
+    isPrime: true,
+    sellerId: "seller-789",
+    category: "Electronics"
   },
   {
     id: 4,
@@ -40,7 +60,9 @@ export const products: Product[] = [
     rating: 4.6,
     reviewCount: 43590,
     isPrime: true,
-    discountPercent: 32
+    discountPercent: 32,
+    sellerId: "seller-123",
+    category: "Home & Kitchen"
   },
   {
     id: 5,
@@ -49,7 +71,9 @@ export const products: Product[] = [
     image: "https://m.media-amazon.com/images/I/71f5Eu5lJSL._AC_SL1500_.jpg",
     rating: 4.8,
     reviewCount: 2478,
-    isPrime: true
+    isPrime: true,
+    sellerId: "seller-456",
+    category: "Computers"
   },
   {
     id: 6,
@@ -59,7 +83,9 @@ export const products: Product[] = [
     rating: 4.9,
     reviewCount: 19876,
     isPrime: true,
-    discountPercent: 25
+    discountPercent: 25,
+    sellerId: "seller-789",
+    category: "Toys & Games"
   },
   {
     id: 7,
@@ -69,7 +95,9 @@ export const products: Product[] = [
     rating: 4.7,
     reviewCount: 123654,
     isPrime: true,
-    discountPercent: 40
+    discountPercent: 40,
+    sellerId: "seller-123",
+    category: "Home & Kitchen"
   },
   {
     id: 8,
@@ -78,7 +106,9 @@ export const products: Product[] = [
     image: "https://m.media-amazon.com/images/I/61hJ40qZKKL._SL1500_.jpg",
     rating: 4.8,
     reviewCount: 5641,
-    isPrime: true
+    isPrime: true,
+    sellerId: "seller-456",
+    category: "Gaming"
   }
 ];
 
