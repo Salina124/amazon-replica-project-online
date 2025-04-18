@@ -1,42 +1,108 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Star, Check, ShieldCheck, ArrowLeft, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Star, Minus, Plus, ShoppingCart, Heart, Share2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { getProductById, getRecommendedProducts } from '@/data/products';
+import { products } from '@/data/products';
 import { useCart } from '@/contexts/CartContext';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import Carousel from '@/components/Carousel';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const [quantity, setQuantity] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
+  const navigate = useNavigate();
   const { addToCart } = useCart();
+  const [quantity, setQuantity] = useState(1);
+  const [user, setUser] = useState<any>(null);
   
-  // Convert id to number for lookup
-  const productId = id ? parseInt(id) : 0;
-  const product = getProductById(productId);
-  const similarProducts = getRecommendedProducts().filter(p => p.id !== productId).slice(0, 4);
+  // Find product by ID
+  const product = products.find(p => p.id === parseInt(id || '0'));
   
-  // Mock product images - in a real app, these would come from the product data
+  // Related products (simple implementation - just show other products)
+  const relatedProducts = products
+    .filter(p => p.id !== parseInt(id || '0'))
+    .slice(0, 4);
+  
+  // Sample product images for carousel
   const productImages = [
-    product?.image,
-    'https://m.media-amazon.com/images/I/71fPRVAQwhL._AC_SL1500_.jpg',
-    'https://m.media-amazon.com/images/I/71-5sawWJYL._AC_SL1500_.jpg',
-    'https://m.media-amazon.com/images/I/71tIdI+zBwL._AC_SL1500_.jpg',
+    product?.image || '',
+    'https://via.placeholder.com/600x400?text=Product+Image+2',
+    'https://via.placeholder.com/600x400?text=Product+Image+3',
+    'https://via.placeholder.com/600x400?text=Product+Image+4',
   ];
+  
+  useEffect(() => {
+    // Check if user is authenticated
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+    
+    return () => subscription.unsubscribe();
+  }, []);
+  
+  const handleQuantityChange = (change: number) => {
+    const newQuantity = quantity + change;
+    if (newQuantity >= 1 && newQuantity <= 10) {
+      setQuantity(newQuantity);
+    }
+  };
+  
+  const handleAddToCart = () => {
+    if (!product) return;
+    
+    if (!user) {
+      toast('Please sign in', {
+        description: 'You need to be signed in to add items to your cart',
+        action: {
+          label: 'Sign In',
+          onClick: () => navigate('/auth')
+        },
+      });
+      return;
+    }
+    
+    addToCart(product, quantity);
+  };
+  
+  const handleContactSeller = () => {
+    if (!user) {
+      toast('Please sign in', {
+        description: 'You need to be signed in to contact sellers',
+        action: {
+          label: 'Sign In',
+          onClick: () => navigate('/auth')
+        },
+      });
+      return;
+    }
+    navigate(`/chat?seller=${product?.sellerId}`);
+  };
   
   if (!product) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-grow container mx-auto px-4 py-10">
-          <div className="text-center">
+        <main className="flex-grow container mx-auto px-4 py-8">
+          <div className="text-center py-12">
             <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-            <Link to="/" className="text-amazon-light hover:text-amazon-orange">
+            <p>The product you're looking for doesn't exist or has been removed.</p>
+            <Button 
+              onClick={() => navigate('/')}
+              className="mt-4"
+            >
               Return to Home
-            </Link>
+            </Button>
           </div>
         </main>
         <Footer />
@@ -44,337 +110,255 @@ const ProductDetail = () => {
     );
   }
   
+  // Format price with 2 decimal places
   const formattedPrice = product.price.toFixed(2);
+  
+  // Calculate discount price if applicable
   const discountPrice = product.discountPercent
     ? (product.price * (1 - product.discountPercent / 100)).toFixed(2)
     : null;
-    
-  const handleAddToCart = () => {
-    addToCart(product, quantity);
-  };
-  
-  const handleBuyNow = () => {
-    addToCart(product, quantity);
-    window.location.href = '/cart';
-  };
-  
-  const nextImage = () => {
-    setActiveImage((prev) => (prev === productImages.length - 1 ? 0 : prev + 1));
-  };
-  
-  const prevImage = () => {
-    setActiveImage((prev) => (prev === 0 ? productImages.length - 1 : prev - 1));
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
-      <main className="flex-grow bg-white">
-        <div className="container mx-auto px-4 py-8">
-          {/* Breadcrumb */}
-          <div className="text-sm text-gray-500 mb-6">
-            <Link to="/" className="hover:text-amazon-orange">Home</Link>
-            <span className="mx-2">&gt;</span>
-            <Link to="/category/electronics" className="hover:text-amazon-orange">Electronics</Link>
-            <span className="mx-2">&gt;</span>
-            <span className="text-gray-700">{product.title}</span>
+      <main className="flex-grow container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+          {/* Product Images */}
+          <div>
+            <Carousel images={productImages} />
           </div>
           
-          {/* Product Detail Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Product Images */}
-            <div className="col-span-1">
-              <div className="sticky top-6">
-                <div className="relative mb-4 aspect-square border rounded-md flex items-center justify-center overflow-hidden bg-white">
-                  <img
-                    src={productImages[activeImage]}
-                    alt={product.title}
-                    className="max-h-[400px] max-w-full object-contain"
-                  />
-                  
-                  {/* Navigation arrows */}
-                  <button 
-                    onClick={prevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100"
-                    aria-label="Previous image"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-                  
-                  <button 
-                    onClick={nextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100"
-                    aria-label="Next image"
-                  >
-                    <ArrowRight size={16} />
-                  </button>
-                  
-                  {/* Image counter */}
-                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                    {activeImage + 1} / {productImages.length}
-                  </div>
-                </div>
-                
-                {/* Thumbnail gallery */}
-                <div className="flex space-x-2 overflow-x-auto">
-                  {productImages.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setActiveImage(index)}
-                      className={`border rounded min-w-[60px] h-[60px] flex items-center justify-center ${
-                        activeImage === index ? 'border-amazon-orange' : 'border-gray-300'
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt={`${product.title} - Thumbnail ${index + 1}`}
-                        className="max-h-[50px] max-w-[50px] object-contain"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* Product Details */}
+          <div>
+            <h1 className="text-2xl font-bold mb-2">{product.title}</h1>
             
-            {/* Product Details */}
-            <div className="col-span-1">
-              <h1 className="text-xl font-medium mb-2">{product.title}</h1>
-              
-              {/* Ratings */}
-              <div className="flex items-center mb-4">
-                <div className="flex mr-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      size={18}
-                      className={i < Math.floor(product.rating) ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
-                    />
-                  ))}
-                </div>
-                <Link to="#reviews" className="text-sm text-blue-600 hover:text-amazon-orange">
-                  {product.reviewCount.toLocaleString()} ratings
-                </Link>
-              </div>
-              
-              <div className="border-b pb-4 mb-4"></div>
-              
-              {/* Price */}
-              <div className="mb-4">
-                {discountPrice ? (
-                  <>
-                    <span className="text-sm">Price:</span>
-                    <div className="flex items-baseline">
-                      <span className="text-red-600 text-2xl font-medium mr-2">${discountPrice}</span>
-                      <span className="text-gray-500 line-through">${formattedPrice}</span>
-                    </div>
-                    <div className="text-red-600 font-medium">
-                      You Save: ${(product.price - parseFloat(discountPrice)).toFixed(2)} ({product.discountPercent}%)
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-sm">Price:</span>
-                    <div className="text-2xl font-medium">${formattedPrice}</div>
-                  </>
-                )}
-              </div>
-              
-              {/* Prime badge */}
-              {product.isPrime && (
-                <div className="flex items-center text-sm mb-4">
-                  <span className="text-blue-600 font-bold mr-1">Prime</span>
-                  <span className="mr-2">FREE Delivery</span>
-                  <span className="font-bold text-green-600">Tomorrow by 9PM</span>
-                </div>
-              )}
-              
-              {/* Features */}
-              <div className="mb-4">
-                <h2 className="font-bold mb-2">About this item:</h2>
-                <ul className="list-disc list-inside text-sm space-y-1">
-                  <li>Premium quality product with advanced features</li>
-                  <li>Compatible with multiple devices and platforms</li>
-                  <li>Long battery life and energy efficient</li>
-                  <li>Compact design yet powerful performance</li>
-                  <li>Backed by a 2-year warranty</li>
-                </ul>
-              </div>
-            </div>
-            
-            {/* Buy Box */}
-            <div className="col-span-1">
-              <div className="border rounded-md p-4 sticky top-6">
-                {discountPrice ? (
-                  <div className="text-xl font-medium mb-1">${discountPrice}</div>
-                ) : (
-                  <div className="text-xl font-medium mb-1">${formattedPrice}</div>
-                )}
-                
-                {product.isPrime && (
-                  <div className="flex items-center text-sm mb-3">
-                    <span className="text-blue-600 font-bold mr-1">Prime</span>
-                    <span className="mr-2">FREE Delivery</span>
-                  </div>
-                )}
-                
-                <div className="text-green-600 text-sm font-medium mb-4">
-                  In Stock
-                </div>
-                
-                {/* Quantity Selector */}
-                <div className="mb-4">
-                  <label htmlFor="quantity" className="block text-sm mb-1">Quantity:</label>
-                  <select
-                    id="quantity"
-                    value={quantity}
-                    onChange={(e) => setQuantity(parseInt(e.target.value))}
-                    className="border border-gray-300 rounded py-1 px-2 w-20"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                      <option key={num} value={num}>
-                        {num}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Add to Cart Button */}
-                <Button 
-                  onClick={handleAddToCart}
-                  className="w-full mb-2 bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
-                >
-                  Add to Cart
-                </Button>
-                
-                {/* Buy Now Button */}
-                <Button 
-                  onClick={handleBuyNow}
-                  className="w-full mb-4 bg-amazon-orange hover:bg-amazon-orange/90"
-                >
-                  Buy Now
-                </Button>
-                
-                {/* Secure Transaction */}
-                <div className="flex items-center text-xs text-gray-600 mb-2">
-                  <ShieldCheck size={14} className="mr-1" />
-                  <span>Secure transaction</span>
-                </div>
-                
-                {/* Ships from and sold by */}
-                <div className="text-xs mb-4">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-600">Ships from</span>
-                    <span>Amazon.com</span>
-                  </div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-600">Sold by</span>
-                    <span>Amazon.com</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Returns</span>
-                    <span>Eligible for Return, Refund or Replacement</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Product Description */}
-          <div className="mt-12 border-t pt-8">
-            <h2 className="text-2xl font-bold mb-4">Product Description</h2>
-            <div className="text-gray-700 space-y-4">
-              <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod, nisl nec ultricies lacinia, 
-                nisl nunc aliquet nisl, nec aliquam nisl nisl nec nisl. Sed euismod, nisl nec ultricies lacinia, 
-                nisl nunc aliquet nisl, nec aliquam nisl nisl nec nisl.
-              </p>
-              <p>
-                Vivamus maximus magna in purus fermentum, id tristique justo lacinia. Integer non bibendum eros. 
-                Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; 
-                Sed non justo ut enim egestas eleifend. Morbi at sapien eu dolor scelerisque malesuada. 
-              </p>
-              <p>
-                Nullam lacus urna, elementum et aliquam at, rutrum vitae arcu. Integer fermentum hendrerit feugiat. 
-                Proin vulputate eros vitae libero dapibus, et condimentum diam egestas. Aliquam tempus eget est ut tincidunt.
-              </p>
-            </div>
-          </div>
-          
-          {/* Similar Products */}
-          <div className="mt-12 border-t pt-8">
-            <h2 className="text-2xl font-bold mb-4">Similar Products</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {similarProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-          
-          {/* Customer Reviews */}
-          <div className="mt-12 border-t pt-8" id="reviews">
-            <h2 className="text-2xl font-bold mb-4">Customer Reviews</h2>
-            <div className="flex items-center mb-6">
-              <div className="flex mr-4">
+            {/* Ratings */}
+            <div className="flex items-center mb-4">
+              <div className="flex mr-2">
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    size={24}
+                    size={18}
                     className={i < Math.floor(product.rating) ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
                   />
                 ))}
               </div>
-              <span className="text-xl">{product.rating} out of 5</span>
+              <span className="text-sm text-blue-600 hover:text-amazon-orange cursor-pointer">
+                {product.reviewCount} ratings
+              </span>
             </div>
             
-            <div className="text-sm mb-4">{product.reviewCount.toLocaleString()} global ratings</div>
-            
-            {/* Sample Reviews */}
-            <div className="space-y-6">
-              <div className="border-b pb-4">
-                <div className="flex items-center mb-2">
-                  <span className="font-medium mr-2">John Doe</span>
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
-                        className={i < 5 ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
-                      />
-                    ))}
+            {/* Price */}
+            <div className="mb-4">
+              {discountPrice ? (
+                <>
+                  <div className="flex items-center">
+                    <span className="text-sm">List Price: </span>
+                    <span className="text-sm text-gray-500 line-through ml-1">${formattedPrice}</span>
                   </div>
+                  <div className="flex items-center">
+                    <span className="text-xl font-medium">Price: </span>
+                    <span className="text-xl text-red-600 font-medium ml-1">${discountPrice}</span>
+                    <span className="ml-2 bg-red-600 text-white text-xs px-1.5 py-0.5 rounded">
+                      Save {product.discountPercent}%
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center">
+                  <span className="text-xl font-medium">Price: </span>
+                  <span className="text-xl font-medium ml-1">${formattedPrice}</span>
                 </div>
-                <h3 className="font-bold mb-2">Great product, exceeded my expectations!</h3>
-                <p className="text-sm text-gray-700">
-                  This product is amazing! It works exactly as described and the quality is outstanding.
-                  I would definitely recommend it to anyone looking for this type of product.
-                </p>
+              )}
+            </div>
+            
+            {/* Prime badge */}
+            {product.isPrime && (
+              <div className="flex items-center mb-4">
+                <span className="text-blue-600 font-bold mr-1">Prime</span>
+                <span className="text-sm">FREE Delivery</span>
               </div>
+            )}
+            
+            {/* Description */}
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold mb-2">About this item</h2>
+              <p className="text-gray-700">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla quam velit, vulputate eu pharetra nec, mattis ac neque. Duis vulputate commodo lectus, ac blandit elit tincidunt id.
+              </p>
+            </div>
+            
+            {/* Quantity Selector */}
+            <div className="mb-6">
+              <div className="flex items-center">
+                <span className="mr-4">Quantity:</span>
+                <div className="flex items-center border rounded">
+                  <button 
+                    onClick={() => handleQuantityChange(-1)}
+                    className="px-3 py-1 border-r"
+                    disabled={quantity <= 1}
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="px-4 py-1">{quantity}</span>
+                  <button 
+                    onClick={() => handleQuantityChange(1)}
+                    className="px-3 py-1 border-l"
+                    disabled={quantity >= 10}
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              <Button 
+                onClick={handleAddToCart}
+                className="w-full bg-amazon-button text-amazon-default hover:bg-amazon-button-hover"
+              >
+                <ShoppingCart className="mr-2" size={18} />
+                Add to Cart
+              </Button>
               
-              <div className="border-b pb-4">
+              <Button 
+                variant="outline" 
+                className="w-full"
+              >
+                <Heart className="mr-2" size={18} />
+                Add to Wish List
+              </Button>
+              
+              <Button
+                onClick={handleContactSeller}
+                className="mt-4 bg-amazon-button text-amazon-default hover:bg-amazon-button-hover flex items-center"
+              >
+                <MessageSquare className="mr-2" size={18} />
+                Contact Seller
+              </Button>
+            </div>
+            
+            {/* Share */}
+            <div className="mt-6">
+              <Button variant="ghost" size="sm" className="text-blue-600">
+                <Share2 className="mr-1" size={16} />
+                Share
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Product Information Tabs */}
+        <div className="mb-12">
+          <Tabs defaultValue="description">
+            <TabsList className="w-full justify-start">
+              <TabsTrigger value="description">Description</TabsTrigger>
+              <TabsTrigger value="specifications">Specifications</TabsTrigger>
+              <TabsTrigger value="reviews">Customer Reviews</TabsTrigger>
+              <TabsTrigger value="faq">FAQ</TabsTrigger>
+            </TabsList>
+            <TabsContent value="description" className="p-4 border rounded-b">
+              <h3 className="text-lg font-semibold mb-2">Product Description</h3>
+              <p className="mb-4">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla quam velit, vulputate eu pharetra nec, mattis ac neque. Duis vulputate commodo lectus, ac blandit elit tincidunt id. Sed rhoncus, tortor sed eleifend tristique, tortor mauris molestie elit, et lacinia ipsum quam nec dui.
+              </p>
+              <p>
+                Donec non tortor in arcu mollis feugiat. Donec mauris tellus, iaculis at varius in, condimentum in quam. Donec euismod magna ac risus hendrerit, at mattis enim lacinia. Curabitur viverra mi tempor ex elementum, nec gravida ex finibus.
+              </p>
+            </TabsContent>
+            <TabsContent value="specifications" className="p-4 border rounded-b">
+              <h3 className="text-lg font-semibold mb-2">Technical Specifications</h3>
+              <table className="w-full">
+                <tbody>
+                  <tr className="border-b">
+                    <td className="py-2 font-medium">Brand</td>
+                    <td className="py-2">Amazon Basics</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="py-2 font-medium">Model</td>
+                    <td className="py-2">AB-100</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="py-2 font-medium">Dimensions</td>
+                    <td className="py-2">10 x 8 x 2 inches</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="py-2 font-medium">Weight</td>
+                    <td className="py-2">1.5 pounds</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="py-2 font-medium">Material</td>
+                    <td className="py-2">Aluminum</td>
+                  </tr>
+                </tbody>
+              </table>
+            </TabsContent>
+            <TabsContent value="reviews" className="p-4 border rounded-b">
+              <h3 className="text-lg font-semibold mb-2">Customer Reviews</h3>
+              <div className="mb-4">
                 <div className="flex items-center mb-2">
-                  <span className="font-medium mr-2">Jane Smith</span>
-                  <div className="flex">
+                  <div className="flex mr-2">
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        size={14}
+                        size={18}
                         className={i < 4 ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
                       />
                     ))}
                   </div>
+                  <span className="font-medium">Great product!</span>
                 </div>
-                <h3 className="font-bold mb-2">Very good but could be better</h3>
-                <p className="text-sm text-gray-700">
-                  Overall I'm pleased with my purchase. The product works well but there are a few minor issues
-                  that could be improved. Still, for the price, it's a great value.
-                </p>
+                <p className="text-sm text-gray-600 mb-1">By John D. on April 15, 2025</p>
+                <p>This product exceeded my expectations. The quality is excellent and it works perfectly for my needs.</p>
               </div>
-            </div>
+              <div>
+                <div className="flex items-center mb-2">
+                  <div className="flex mr-2">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={18}
+                        className={i < 5 ? "fill-amazon-orange text-amazon-orange" : "text-gray-300"}
+                      />
+                    ))}
+                  </div>
+                  <span className="font-medium">Absolutely love it!</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">By Sarah M. on April 10, 2025</p>
+                <p>I've been using this for a month now and it's been fantastic. Highly recommend!</p>
+              </div>
+            </TabsContent>
+            <TabsContent value="faq" className="p-4 border rounded-b">
+              <h3 className="text-lg font-semibold mb-2">Frequently Asked Questions</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium">Q: Is this product compatible with Model XYZ?</h4>
+                  <p className="text-gray-700">A: Yes, this product is fully compatible with Model XYZ and all newer versions.</p>
+                </div>
+                <div>
+                  <h4 className="font-medium">Q: How long does the battery last?</h4>
+                  <p className="text-gray-700">A: The battery typically lasts 8-10 hours of continuous use on a full charge.</p>
+                </div>
+                <div>
+                  <h4 className="font-medium">Q: Does this come with a warranty?</h4>
+                  <p className="text-gray-700">A: Yes, this product comes with a 1-year limited manufacturer warranty.</p>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+        
+        {/* Related Products */}
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Related Products</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {relatedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
           </div>
         </div>
       </main>
-      
       <Footer />
     </div>
   );
